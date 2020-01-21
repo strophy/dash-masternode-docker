@@ -1,0 +1,173 @@
+version: '3'
+
+services:
+  dashd:
+    image: $IMAGE_DASHD
+    container_name: dashd
+    command: /bin/bash -c 'dashd -conf=/dash/dash.conf'
+    restart: always
+    volumes:
+      - ./dash.conf:/dash/dash.conf
+      - data:/dash
+    ports:
+      - $DASHD_P2P_PORT:$DASHD_P2P_PORT
+
+  sentinel:
+    image: $IMAGE_SENTINEL
+    container_name: sentinel
+    restart: always
+    volumes:
+      - ./dash.conf:/sentinel/dash.conf
+      - data:/dash
+    environment:
+      - RPCHOST=dashd
+
+  insight:
+    image: $IMAGE_INSIGHT
+    container_name: insight
+    restart: always
+    volumes:
+      - ./insight.json:/insight/dashcore-node.json
+
+  drive_mongodb:
+    image: $IMAGE_MONGO
+    container_name: drive_mongodb
+    command: mongod --replSet driveDocumentIndices --bind_ip_all
+    ports:
+      - 27017:27017
+    volumes:
+      - drive_mongodb:/data/db
+
+  drive_update_state:
+    image: $IMAGE_DRIVE
+    container_name: drive_update_state
+    restart: always
+    command: sh -c "sleep 10 && npm run updateState"
+    environment:
+      - DASHCORE_JSON_RPC_HOST=dashd
+      - DASHCORE_JSON_RPC_USER=$DASHD_RPC_USER
+      - DASHCORE_JSON_RPC_PASS=$DASHD_RPC_PASS
+      - DASHCORE_JSON_RPC_PORT=$DASHD_RPC_PORT
+      - STATEVIEW_MONGODB_URL=mongodb://drive_mongodb:27017
+      - UPDATE_STATE_GRPC_PORT=5000
+      - TENDERMINT_RPC_HOST=tendermint
+      - TENDERMINT_RPC_PORT=26657
+    ports:
+      - 5000:5000
+    depends_on:
+      - drive_mongodb
+
+  drive_api:
+    image: $IMAGE_DRIVE
+    container_name: drive_api
+    restart: always
+    command: npm run api
+    environment:
+      - DASHCORE_JSON_RPC_HOST=dashd
+      - DASHCORE_JSON_RPC_USER=$DASHD_RPC_USER
+      - DASHCORE_JSON_RPC_PASS=$DASHD_RPC_PASS
+      - DASHCORE_JSON_RPC_PORT=$DASHD_RPC_PORT
+      - STATEVIEW_MONGODB_URL=mongodb://drive_mongodb:27017
+      - API_RPC_PORT=6000
+      - TENDERMINT_RPC_HOST=tendermint
+      - TENDERMINT_RPC_PORT=26657
+    depends_on:
+      - drive_mongodb
+    ports:
+      - 6000:6000
+
+  machine:
+    image: $IMAGE_MACHINE
+    container_name: machine
+    command: npm run abci
+    environment:
+      - DRIVE_UPDATE_STATE_HOST=drive_update_state
+      - DRIVE_UPDATE_STATE_PORT=5000
+      - DRIVE_API_HOST=drive_api
+      - DRIVE_API_PORT=6000
+      - RATE_LIMITER_ACTIVE=false
+      - RATE_LIMITER_MAX_TRANSITIONS_PER_ID=100
+      - RATE_LIMITER_PER_BLOCK_INTERVAL=36
+      - RATE_LIMITER_PER_BAN_INTERVAL=17280
+      - RATE_LIMITER_INTERVAL_PREFIX='ratelimiter.interval'
+      - RATE_LIMITER_BAN_PREFIX='ratelimiter.ban'
+    volumes:
+      - machine_leveldb:/usr/src/app/db
+    ports:
+      - 26658:26658
+    depends_on:
+      - drive_api
+      - drive_update_state
+
+  #tendermint:
+  #  image: $IMAGE_TENDERMINT
+  #  container_name: tendermint
+  #  entrypoint: /usr/bin/tendermint
+  #  command: init
+  #  restart: always
+  #  ports:
+  #    - 26657:26657
+  #    - 26656:26656
+  #  volumes:
+  #    - /tendermint:/tendermint
+  #  depends_on:
+  #    - machine
+
+  dapi:
+    image: $IMAGE_DAPI
+    container_name: dapi
+    command: npm run api
+    restart: always
+    depends_on:
+      - drive_api
+      # - tendermint
+    ports:
+      - 3004:3004
+      - 3005:3005
+    environment:
+      - INSIGHT_URI=http://insight:3001/insight-api
+      - API_JSON_RPC_PORT=3004
+      - API_GRPC_PORT=3005
+      - DASHCORE_RPC_HOST=dashd
+      - DASHCORE_RPC_USER=$DASHD_RPC_USER
+      - DASHCORE_RPC_PASS=$DASHD_RPC_PASS
+      - DASHCORE_RPC_PORT=$DASHD_RPC_PORT
+      - DASHCORE_ZMQ_HOST=dashd
+      - DASHCORE_ZMQ_PORT=$DASHD_ZMQ_PORT
+      - DASHCORE_P2P_HOST=dashd
+      - DASHCORE_P2P_PORT=$DASHD_P2P_PORT
+      - DASHCORE_P2P_NETWORK=$NETWORK
+      - DRIVE_RPC_HOST=drive_api
+      - DRIVE_RPC_PORT=6000
+      - NETWORK=$NETWORK
+      - TENDERMINT_CORE_HOST=tendermint
+      - TENDERMINT_CORE_PORT=26657
+
+  dapi_tx_filter_stream:
+    image: $IMAGE_DAPI
+    container_name: dapi_tx_filter_stream
+    command: npm run tx-filter-stream
+    restart: always
+    ports:
+      - 3006:3006
+    environment:
+      - INSIGHT_URI=http://insight:3001/insight-api
+      - TX_FILTER_STREAM_GRPC_PORT=3006
+      - DASHCORE_RPC_HOST=dashd
+      - DASHCORE_RPC_PORT=$DASHD_RPC_PORT
+      - DASHCORE_RPC_USER=$DASHD_RPC_USER
+      - DASHCORE_RPC_PASS=$DASHD_RPC_PASS
+      - DASHCORE_ZMQ_HOST=dashd
+      - DASHCORE_ZMQ_PORT=$DASHD_ZMQ_PORT
+      - DASHCORE_P2P_HOST=dashd
+      - DASHCORE_P2P_PORT=$DASHD_P2P_PORT
+      - DASHCORE_P2P_NETWORK=$NETWORK
+      - DRIVE_RPC_HOST=drive_api
+      - DRIVE_RPC_PORT=6000
+      - NETWORK=$NETWORK
+
+volumes:
+  data:
+  drive_mongodb:
+  machine_leveldb:
+  tendermint:
