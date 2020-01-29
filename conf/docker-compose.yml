@@ -17,7 +17,7 @@ services:
     image: #@ getattr(data.values.images.sentinel, data.values.network)
     restart: always
     volumes:
-      - ./dash.conf:/dash/dash.conf
+      - ./dash.conf:/sentinel/dash.conf
     environment:
       - RPCHOST=dashd
       - #@ "RPCPASSWORD=" + data.values.rpc_password
