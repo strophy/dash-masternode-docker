@@ -1,7 +1,7 @@
 #@data/values
 ---
 network: mainnet
-masternode: true
-masternode_bls_privkey: 395555d67d884364f9e37e7e1b29536519b74af2e5ff7b62122e62c2fffab35e
+masternode: false
+masternode_bls_privkey:
 rpc_user: dash
-rpc_password: good_password
+rpc_password: ''

@@ -7,7 +7,7 @@ services:
     command: /bin/bash -c 'dashd -conf=/dash/dash.conf'
     restart: always
     volumes:
-      - ./conf/dash.conf:/dash/dash.conf
+      - ./dash.conf:/dash/dash.conf
       - dashd_data:/dash
     ports:
       - #@ getattr(data.values.ports.dashd, data.values.network).p2p + ":" + getattr(data.values.ports.dashd, data.values.network).p2p
@@ -17,7 +17,7 @@ services:
     image: #@ getattr(data.values.images.sentinel, data.values.network)
     restart: always
     volumes:
-      - ./deploy/dash.conf:/dash/dash.conf
+      - ./dash.conf:/dash/dash.conf
     environment:
       - RPCHOST=dashd
       - #@ "RPCPASSWORD=" + data.values.rpc_password
@@ -28,7 +28,7 @@ services:
     image: #@ getattr(data.values.images.insight, data.values.network)
     restart: always
     volumes:
-      - ./deploy/insight.json:/insight/dashcore-node.json
+      - ./insight.json:/insight/dashcore-node.json
   drive_mongodb:
     image: #@ getattr(data.values.images.mongo, data.values.network)
     command: mongod --replSet driveDocumentIndices --bind_ip_all
@@ -156,6 +156,8 @@ services:
 
 volumes:
   dashd_data:
+  #@ if data.values.network == 'evonet':
   drive_mongodb:
   machine_leveldb:
   tendermint:
+  #@ end
