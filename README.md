@@ -1,2 +1,0 @@
-# dash-masternode-docker
- 

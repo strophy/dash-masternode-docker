@@ -1,0 +1,36 @@
+#@data/values
+---
+#@overlay/match missing_ok=True
+images:
+  dashd:
+    evonet: dashpay/dashd:0.14.0.5
+    testnet: dashpay/dashd-develop:latest
+    mainnet: dashpay/dashd:0.14.0.5
+  sentinel:
+    evonet: strophy/sentinel:latest
+    testnet: strophy/sentinel:latest
+    mainnet: strophy/sentinel:latest
+  insight:
+    evonet: dashpay/insight-api:2.3.3
+    testnet: dashpay/insight-api:2.3.3
+    mainnet: dashpay/insight-api:2.3.3
+  mongo:
+    evonet: mongo:4.2
+    testnet: mongo:4.2
+    mainnet: mongo:4.2
+  machine:
+    evonet: dashpay/js-machine:latest
+    testnet: dashpay/js-machine:latest
+    mainnet: dashpay/js-machine:latest
+  dapi:
+    evonet: dashpay/dapi:dev
+    testnet: dashpay/dapi:dev
+    mainnet: dashpay/dapi:dev
+  drive:
+    evonet: dashpay/drive:dev
+    testnet: dashpay/drive:dev
+    mainnet: dashpay/drive:dev
+  tendermint:
+    evonet: tendermint/tendermint:v0.32.2
+    testnet: tendermint/tendermint:v0.32.2
+    mainnet: tendermint/tendermint:v0.32.2

@@ -1,0 +1,30 @@
+#@data/values
+---
+#@overlay/match missing_ok=True
+ports:
+  dashd:
+    evonet:
+      p2p: "20001"
+      rpc: "20002"
+      zmq: "20003"
+    testnet:
+      p2p: "19999"
+      rpc: "19998"
+      zmq: "19997"
+    mainnet:
+      p2p: "9999"
+      rpc: "9998"
+      zmq: "9997"
+  dapi:
+    json: "3004"
+    grpc: "3005"
+    txgrpc: "3006"
+  drive:
+    api: "6000"
+    grpc: "5000"
+  mongo: "27017"
+  insight: "3001"
+  tendermint:
+    p2p: "26656"
+    rpc: "26657"
+  machine: "26658"

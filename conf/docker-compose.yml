@@ -1,0 +1,161 @@
+#@ load ("@ytt:data", "data")
+---
+version: '3'
+services:
+  dashd:
+    image: #@ getattr(data.values.images.dashd, data.values.network)
+    command: /bin/bash -c 'dashd -conf=/dash/dash.conf'
+    restart: always
+    volumes:
+      - ./conf/dash.conf:/dash/dash.conf
+      - dashd_data:/dash
+    ports:
+      - #@ getattr(data.values.ports.dashd, data.values.network).p2p + ":" + getattr(data.values.ports.dashd, data.values.network).p2p
+
+  #@ if data.values.masternode:
+  sentinel:
+    image: #@ getattr(data.values.images.sentinel, data.values.network)
+    restart: always
+    volumes:
+      - ./deploy/dash.conf:/dash/dash.conf
+    environment:
+      - RPCHOST=dashd
+      - #@ "RPCPASSWORD=" + data.values.rpc_password
+  #@ end
+
+  #@ if data.values.network == 'evonet':
+  insight:
+    image: #@ getattr(data.values.images.insight, data.values.network)
+    restart: always
+    volumes:
+      - ./deploy/insight.json:/insight/dashcore-node.json
+  drive_mongodb:
+    image: #@ getattr(data.values.images.mongo, data.values.network)
+    command: mongod --replSet driveDocumentIndices --bind_ip_all
+    ports:
+      - #@ data.values.ports.mongo + ":" + data.values.ports.mongo
+    volumes:
+      - drive_mongodb:/data/db
+  drive_update_state:
+    image: #@ getattr(data.values.images.drive, data.values.network)
+    restart: always
+    command: sh -c "sleep 10 && npm run updateState"
+    environment:
+      - DASHCORE_JSON_RPC_HOST=dashd
+      - TENDERMINT_RPC_HOST=tendermint
+      - #@ "DASHCORE_JSON_RPC_USER=" + data.values.rpc_user
+      - #@ "DASHCORE_JSON_RPC_PASS=" + data.values.rpc_password
+      - #@ "DASHCORE_JSON_RPC_PORT=" + getattr(data.values.ports.dashd, data.values.network).rpc
+      - #@ "STATEVIEW_MONGODB_URL=mongodb://drive_mongodb:" + data.values.ports.mongo
+      - #@ "UPDATE_STATE_GRPC_PORT=" + data.values.ports.drive.grpc
+      - #@ "TENDERMINT_RPC_PORT=" + data.values.ports.tendermint.rpc
+    ports:
+      - #@ data.values.ports.drive.grpc + ":" + data.values.ports.drive.grpc
+    depends_on:
+      - drive_mongodb
+  drive_api:
+    image: #@ getattr(data.values.images.drive, data.values.network)
+    restart: always
+    command: npm run api
+    environment:
+      - DASHCORE_JSON_RPC_HOST=dashd
+      - TENDERMINT_RPC_HOST=tendermint
+      - #@ "DASHCORE_JSON_RPC_USER=" + data.values.rpc_user
+      - #@ "DASHCORE_JSON_RPC_PASS=" + data.values.rpc_password
+      - #@ "DASHCORE_JSON_RPC_PORT=" + getattr(data.values.ports.dashd, data.values.network).rpc
+      - #@ "STATEVIEW_MONGODB_URL=mongodb://drive_mongodb:" + data.values.ports.mongo
+      - #@ "API_RPC_PORT=" + data.values.ports.drive.api
+      - #@ "TENDERMINT_RPC_PORT=26657" + data.values.ports.tendermint.rpc
+    depends_on:
+      - drive_mongodb
+    ports:
+      - #@ data.values.ports.drive.api + ":" + data.values.ports.drive.api
+  machine:
+    image: #@ getattr(data.values.images.machine, data.values.network)
+    command: npm run abci
+    environment:
+      - DRIVE_UPDATE_STATE_HOST=drive_update_state
+      - DRIVE_API_HOST=drive_api
+      - #@ "DRIVE_UPDATE_STATE_PORT=" + data.values.ports.drive.grpc
+      - #@ "DRIVE_API_PORT=" + data.values.ports.drive.api
+      - RATE_LIMITER_ACTIVE=false
+      - RATE_LIMITER_MAX_TRANSITIONS_PER_ID=100
+      - RATE_LIMITER_PER_BLOCK_INTERVAL=36
+      - RATE_LIMITER_PER_BAN_INTERVAL=17280
+      - RATE_LIMITER_INTERVAL_PREFIX='ratelimiter.interval'
+      - RATE_LIMITER_BAN_PREFIX='ratelimiter.ban'
+    volumes:
+      - machine_leveldb:/usr/src/app/db
+    ports:
+      - #@ data.values.ports.machine + ":" + data.values.ports.machine
+    depends_on:
+      - drive_api
+      - drive_update_state
+  tendermint:
+   image: #@ getattr(data.values.images.tendermint, data.values.network)
+   entrypoint: /usr/bin/tendermint
+   command: init
+   restart: always
+   ports:
+     - #@ data.values.ports.tendermint.p2p + ":" + data.values.ports.tendermint.p2p
+     - #@ data.values.ports.tendermint.rpc + ":" + data.values.ports.tendermint.rpc
+   volumes:
+     - /tendermint:/tendermint
+   depends_on:
+     - machine
+  dapi:
+    image: #@ getattr(data.values.images.dapi, data.values.network)
+    command: npm run api
+    restart: always
+    depends_on:
+      - drive_api
+      - tendermint
+    ports:
+      - #@ data.values.ports.dapi.json + ":" + data.values.ports.dapi.json
+      - #@ data.values.ports.dapi.grpc + ":" + data.values.ports.dapi.grpc
+    environment:
+      - DASHCORE_RPC_HOST=dashd
+      - DASHCORE_ZMQ_HOST=dashd
+      - DASHCORE_P2P_HOST=dashd
+      - DRIVE_RPC_HOST=drive_api
+      - TENDERMINT_CORE_HOST=tendermint
+      - #@ "INSIGHT_URI=http://insight:" + data.values.ports.insight + "/insight-api"
+      - #@ "API_JSON_RPC_PORT=" + data.values.ports.dapi.json
+      - #@ "API_GRPC_PORT=" + data.values.ports.dapi.grpc
+      - #@ "DASHCORE_RPC_USER=" + data.values.rpc_user
+      - #@ "DASHCORE_RPC_PASS=" + data.values.rpc_password
+      - #@ "DASHCORE_RPC_PORT=" + getattr(data.values.ports.dashd, data.values.network).rpc
+      - #@ "DASHCORE_ZMQ_PORT=" + getattr(data.values.ports.dashd, data.values.network).zmq
+      - #@ "DASHCORE_P2P_PORT=" + getattr(data.values.ports.dashd, data.values.network).p2p
+      - #@ "DASHCORE_P2P_NETWORK=" + data.values.network
+      - #@ "DRIVE_RPC_PORT=" + data.values.ports.drive.api
+      - #@ "NETWORK=" + data.values.network
+      - #@ "TENDERMINT_CORE_PORT=" + data.values.ports.tendermint.rpc
+  dapi_tx_filter_stream:
+    image: #@ getattr(data.values.images.dapi, data.values.network)
+    command: npm run tx-filter-stream
+    restart: always
+    ports:
+      - #@ data.values.ports.dapi.txgrpc + ":" + data.values.ports.dapi.txgrpc
+    environment:
+      - DASHCORE_RPC_HOST=dashd
+      - DASHCORE_ZMQ_HOST=dashd
+      - DASHCORE_P2P_HOST=dashd
+      - DRIVE_RPC_HOST=drive_api
+      - #@ "INSIGHT_URI=http://insight:" + data.values.ports.insight + "/insight-api"
+      - #@ "TX_FILTER_STREAM_GRPC_PORT=" + data.values.ports.dapi.txgrpc
+      - #@ "DASHCORE_RPC_USER=" + data.values.rpc_user
+      - #@ "DASHCORE_RPC_PASS=" + data.values.rpc_password
+      - #@ "DASHCORE_RPC_PORT=" + getattr(data.values.ports.dashd, data.values.network).rpc
+      - #@ "DASHCORE_ZMQ_PORT=" + getattr(data.values.ports.dashd, data.values.network).zmq
+      - #@ "DASHCORE_P2P_PORT=" + getattr(data.values.ports.dashd, data.values.network).p2p
+      - #@ "DASHCORE_P2P_NETWORK=" + data.values.network
+      - #@ "DRIVE_RPC_PORT=" + data.values.ports.drive.api
+      - #@ "NETWORK=" + data.values.network
+  #@ end
+
+volumes:
+  dashd_data:
+  drive_mongodb:
+  machine_leveldb:
+  tendermint:

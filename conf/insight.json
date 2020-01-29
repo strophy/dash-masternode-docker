@@ -1,0 +1,28 @@
+(@ load("@ytt:json", "json") -@)
+(@ load("@ytt:data", "data") -@)
+{
+  "network": "(@= data.values.network @)",
+  "port": (@= data.values.ports.insight @),
+  "services": [
+    "dashd",
+    "web",
+    "@dashevo/insight-api"
+  ],
+  "servicesConfig": {
+    "dashd": {
+      "connect": [
+        {
+          "rpchost": "dashd",
+          "rpcport": (@= getattr(data.values.ports.dashd, data.values.network).rpc @),
+          "rpcuser": "(@= data.values.rpc_user @)",
+          "rpcpassword": "(@= data.values.rpc_password @)",
+          "zmqpubrawtx": "tcp://dashd:(@= getattr(data.values.ports.dashd, data.values.network).zmq @),",
+          "zmqpubhashblock": "tcp://dashd:(@= getattr(data.values.ports.dashd, data.values.network).zmq @),"
+        }
+      ]
+    },
+    "@dashevo/insight-api": {
+      "disableRateLimiter": true
+    }
+  }
+}
