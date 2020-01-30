@@ -19,11 +19,11 @@ This tool deploys a Dash masternode to the current host.
 
 - docker-compose
 
-  - `curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose && chmod +x /usr/local/bin/docker-compose`
+  - `sudo curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose && sudo chmod +x /usr/local/bin/docker-compose`
 
 - ytt
 
-  - `curl -L https://k14s.io/install.sh | bash`
+  - `curl -L https://k14s.io/install.sh | sudo bash`
 
 ## Download
 
@@ -36,4 +36,4 @@ This tool deploys a Dash masternode to the current host.
 
 ## Setup
 
-1. Run `./dash.sh`
+1. Set `./dash.sh` executable and run
