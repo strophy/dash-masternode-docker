@@ -5,6 +5,7 @@ services:
   dashd:
     image: #@ getattr(data.values.images.dashd, data.values.network)
     command: /bin/bash -c 'dashd -conf=/dash/dash.conf'
+    container_name: dashd
     restart: always
     volumes:
       - ./dash.conf:/dash/dash.conf
@@ -15,6 +16,7 @@ services:
   #@ if data.values.masternode:
   sentinel:
     image: #@ getattr(data.values.images.sentinel, data.values.network)
+    container_name: sentinel
     restart: always
     volumes:
       - ./dash.conf:/sentinel/dash.conf
@@ -26,11 +28,14 @@ services:
   #@ if data.values.network == 'evonet':
   insight:
     image: #@ getattr(data.values.images.insight, data.values.network)
+    container_name: insight
     restart: always
     volumes:
       - ./insight.json:/insight/dashcore-node.json
   drive_mongodb:
     image: #@ getattr(data.values.images.mongo, data.values.network)
+    container_name: drive_mongodb
+    restart: always
     command: mongod --replSet driveDocumentIndices --bind_ip_all
     ports:
       - #@ data.values.ports.mongo + ":" + data.values.ports.mongo
@@ -38,6 +43,7 @@ services:
       - drive_mongodb:/data/db
   drive_update_state:
     image: #@ getattr(data.values.images.drive, data.values.network)
+    container_name: drive_update_state
     restart: always
     command: sh -c "sleep 10 && npm run updateState"
     environment:
@@ -55,6 +61,7 @@ services:
       - drive_mongodb
   drive_api:
     image: #@ getattr(data.values.images.drive, data.values.network)
+    container_name: drive_api
     restart: always
     command: npm run api
     environment:
@@ -72,6 +79,7 @@ services:
       - #@ data.values.ports.drive.api + ":" + data.values.ports.drive.api
   machine:
     image: #@ getattr(data.values.images.machine, data.values.network)
+    container_name: machine
     command: npm run abci
     environment:
       - DRIVE_UPDATE_STATE_HOST=drive_update_state
@@ -95,6 +103,7 @@ services:
    image: #@ getattr(data.values.images.tendermint, data.values.network)
    entrypoint: /usr/bin/tendermint
    command: init
+   container_name: tendermint
    restart: always
    ports:
      - #@ data.values.ports.tendermint.p2p + ":" + data.values.ports.tendermint.p2p
@@ -106,6 +115,7 @@ services:
   dapi:
     image: #@ getattr(data.values.images.dapi, data.values.network)
     command: npm run api
+    container_name: dapi
     restart: always
     depends_on:
       - drive_api
@@ -134,6 +144,7 @@ services:
   dapi_tx_filter_stream:
     image: #@ getattr(data.values.images.dapi, data.values.network)
     command: npm run tx-filter-stream
+    container_name: dapi_tx_filter_stream
     restart: always
     ports:
       - #@ data.values.ports.dapi.txgrpc + ":" + data.values.ports.dapi.txgrpc
