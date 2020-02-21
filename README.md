@@ -37,3 +37,9 @@ This tool deploys a Dash masternode to the current host.
 ## Setup
 
 1. Set `./dash.sh` executable and run
+
+## Docker
+
+1. List and run docker images
+  -`docker image ls`
+  -`docker run dashpay/dashd`
